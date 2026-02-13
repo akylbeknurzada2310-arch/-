@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { ShieldAlert, Users, Activity, Baby, AlertTriangle, ShieldCheck, Stethoscope } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShieldAlert, Users, Activity, Baby, AlertTriangle, ShieldCheck, Stethoscope, Sparkles, Loader2 } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 
 interface StatusIndicatorProps {
   label: string;
@@ -42,17 +43,70 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ label, value, status,
 };
 
 const ExecutiveDashboard: React.FC = () => {
+  const [aiReport, setAiReport] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const generateAiSummary = async () => {
+    setIsLoading(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const prompt = `Ты — ведущий эксперт-аналитик Министерства здравоохранения Кыргызской Республики. 
+      Проанализируй текущую ситуацию на основе данных:
+      1. Кадры: укомплектованность 84.2% (отрицательный тренд). Критический дефицит в Баткенской области.
+      2. Эпидемиология: Вспышка кори в Ошской области (+42 случая за 48 часов).
+      3. Иммунизация: Охват 94.1% (стабильно).
+      
+      Напиши краткий аналитический отчет для Министра (до 120 слов). 
+      Укажи 3 конкретных шага, которые нужно предпринять немедленно. Используй официальный, но энергичный тон.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+      });
+
+      setAiReport(response.text || "Не удалось получить анализ.");
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      setAiReport("Ошибка AI: Проверьте настройки API_KEY в панели Vercel.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex items-center space-x-4">
-        <div className="p-3 bg-gray-900 text-white rounded-2xl shadow-xl">
-          <ShieldAlert size={32} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-gray-900 text-white rounded-2xl shadow-xl">
+            <ShieldAlert size={32} />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-gray-900">Панель руководства</h2>
+            <p className="text-gray-500 font-medium">Консолидированный мониторинг критических индикаторов</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-3xl font-black text-gray-900">Панель руководства</h2>
-          <p className="text-gray-500 font-medium">Консолидированный мониторинг критических индикаторов МЗ КР</p>
-        </div>
+
+        <button 
+          onClick={generateAiSummary}
+          disabled={isLoading}
+          className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+        >
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
+          <span>{aiReport ? 'Обновить AI-анализ' : 'AI-анализ ситуации'}</span>
+        </button>
       </div>
+
+      {aiReport && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-8 animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center space-x-2 mb-4 text-indigo-800">
+            <Sparkles size={20} />
+            <h3 className="font-bold uppercase tracking-widest text-sm">Интеллектуальная сводка (Gemini AI)</h3>
+          </div>
+          <div className="prose prose-indigo max-w-none text-indigo-900 whitespace-pre-wrap leading-relaxed italic">
+            {aiReport}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatusIndicator label="Укомплектованность кадрами" value="84.2%" status="risk" trend="-1.2%" />
